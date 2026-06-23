@@ -16,5 +16,5 @@ spec:
         name: fusion-spectra-main
         namespace: flux-system
       valuesFiles:
-        - values.yaml
-        - values-dev.yaml
+        - deployment/values.yaml
+        - deployment/values-dev.yaml

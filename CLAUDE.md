@@ -77,8 +77,9 @@ first instance is added here.
 
 ## Values layering for instances
 `HelmRelease.spec.chart.spec.valuesFiles` references the chart's own values files (e.g. `values.yaml`,
-`values-dev.yaml`) by path relative to the chart root — reuse the project's existing values files instead of
-inlining a full `values:` block per instance. For instance-specific overrides beyond what those files give
+`values-dev.yaml`) by path relative to the **GitRepository root**, not the chart subdirectory — e.g.
+`deployment/values.yaml`, not `values.yaml`, even though `chart.spec.chart: ./deployment`. Reuse the
+project's existing values files instead of inlining a full `values:` block per instance. For instance-specific overrides beyond what those files give
 (e.g. a different image tag or hostname for one specific instance), add a Kustomize patch in that instance's
 `kustomization.yaml` targeting the `HelmRelease`'s `spec.values`, rather than maintaining a divergent copy of
 the whole values block.
