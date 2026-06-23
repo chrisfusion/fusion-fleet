@@ -13,6 +13,7 @@ spec:
       oidcBypass: true
       oidcBypassBaseUrl: "http://bff-a.fusion.local"
       corsOrigins: "http://spectra-a.fusion.local"
+      postLoginRedirectUrl: "http://spectra-a.fusion.local"
       forgeUrl: "http://fusion-forge.fusion-dev-a.svc.cluster.local:8080"
       indexUrl: "http://fusion-index-backend.fusion-dev-a.svc.cluster.local:8080"
       weaveUrl: "http://fusion-weave-api.fusion-dev-a.svc.cluster.local:8082"
