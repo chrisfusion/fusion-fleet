@@ -17,6 +17,8 @@ spec:
         name: bitnami
         namespace: flux-system
   values:
+    image:
+      tag: latest   # Bitnami removes pinned tags; use latest for dev (same convention as fusion-index)
     auth:
       username: fusion_bff
       password: devpass

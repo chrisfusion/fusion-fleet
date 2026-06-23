@@ -6,6 +6,8 @@ metadata:
 spec:
   values:
     namespaceCreate: false
+    codeSource:
+      indexURL: "http://fusion-index-backend.fusion-dev-a.svc.cluster.local:8080"
     image:
       repository: fusion-weave-operator
       tag: "0.2.1"

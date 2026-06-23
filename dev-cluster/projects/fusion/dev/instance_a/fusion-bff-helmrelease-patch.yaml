@@ -11,6 +11,10 @@ spec:
       pullPolicy: Never
     config:
       oidcBypass: true
+      forgeUrl: "http://fusion-forge.fusion-dev-a.svc.cluster.local:8080"
+      indexUrl: "http://fusion-index-backend.fusion-dev-a.svc.cluster.local:8080"
+      weaveUrl: "http://fusion-weave-api.fusion-dev-a.svc.cluster.local:8082"
+      contentUrl: "http://fusion-content.fusion-dev-a.svc.cluster.local:8080"
     db:
       create: true
       dsn: "postgres://fusion_bff:devpass@fusion-bff-postgres-postgresql.fusion-dev-a.svc.cluster.local:5432/fusion_bff"

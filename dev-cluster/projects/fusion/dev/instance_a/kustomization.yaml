@@ -30,3 +30,7 @@ patches:
     target:
       kind: HelmRelease
       name: fusion-content
+  - path: fusion-forge-helmrelease-patch.yaml
+    target:
+      kind: HelmRelease
+      name: fusion-forge
