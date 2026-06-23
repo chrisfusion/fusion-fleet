@@ -34,6 +34,22 @@ but its actual git origin/chart is `fusion-weave`, use that name for GitReposito
 one folder per repo. Each instance directory holds one `HelmRelease` per microservice included in that
 instance.
 
+## Adding a new instance
+Fastest path: copy an existing instance dir and sed-replace its namespace string (e.g.
+`fusion-dev-a` → `fusion-dev-b`) across all files. This does NOT catch `flux-kustomization.yaml`'s
+`path:` field, which references the instance *directory name* (e.g. `instance_a`) literally — fix that
+one by hand. Also add the new `flux-kustomization.yaml` to the root `dev-cluster/kustomization.yaml`.
+
+## Real ingress per instance
+With the host's wildcard `*.fusion.local` DNS (see fusion-spectra/CLAUDE.md), per-instance ingress
+hostnames work with zero `/etc/hosts` edits — convention: `<service>-<instance>.fusion.local` (e.g.
+`spectra-b.fusion.local`). Two things to check per chart before patching in a new host:
+- ingress value *shape* differs per project — fusion-spectra uses a single `ingress.host` string,
+  fusion-bff uses `ingress.hosts: [{host, paths}]`. Read the chart's `ingress.yaml` template, don't
+  assume a shape.
+- fusion-spectra defaults `ingress.tls.enabled: true` — overriding `ingress.host` also needs
+  `ingress.tls.enabled: false` in the same patch, or it dangles a `secretName` with no matching Secret.
+
 ## Postgres
 Don't assume every project needs its own Postgres — check each chart first, and check whether a project
 without a bundled database is actually meant to share an *existing* instance's Postgres (a different
@@ -61,7 +77,9 @@ Secret. For local dev, mirror project repos into Gitea instead:
 `GitRepository.spec.url` in `gitrepositories/` points at the Gitea mirror, not the real origin.
 
 ## Gitea (minikube)
-- Namespace `gitea`, ingress `gitea.fusion.local` (add to `/etc/hosts`: `192.168.49.2 gitea.fusion.local`)
+- Namespace `gitea`, ingress `gitea.fusion.local` — resolves automatically via the host's wildcard
+  `*.fusion.local` DNS (dnsmasq + systemd-resolved, see fusion-spectra/CLAUDE.md "Local DNS"); no
+  `/etc/hosts` entry needed
 - Admin: `gitea_admin` / `gitea_admin_pw`
 - nginx ingress needs `nginx.ingress.kubernetes.io/proxy-body-size: 512m` annotation — default 1MB limit
   breaks `git push` of any repo with real history/binaries (set in the gitea Helm values, not just patched
@@ -119,6 +137,11 @@ the `HelmRelease`/`Kustomization`s, restore the live namespace's resources direc
 --install ... -n fusion`, then `helm uninstall` the tainted release in the test namespace before resuming
 Flux so the next install starts with clean history. Lesson: fix the chart and verify with `helm template`
 *before* ever creating the first `HelmRelease` for a project — never fix-after-broken-install again.
+
+The stale-`HelmChart`-artifact caching bug (delete-and-recreate the `HelmChart` object to force a
+rebuild) only seems to hit when amending a chart *after* its `HelmChart` object already exists for that
+release — instance_b's brand-new first install of the same (already-fixed) charts didn't trigger it at
+all.
 
 ## Values layering for instances
 Before referencing a values file in `valuesFiles`, confirm it's actually tracked in git
