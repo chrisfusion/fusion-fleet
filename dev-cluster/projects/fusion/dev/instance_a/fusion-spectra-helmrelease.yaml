@@ -15,4 +15,6 @@ spec:
         kind: GitRepository
         name: fusion-spectra-main
         namespace: flux-system
-  values: {}
+      valuesFiles:
+        - values.yaml
+        - values-dev.yaml

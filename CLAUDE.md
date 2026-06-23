@@ -58,11 +58,27 @@ Secret. For local dev, mirror project repos into Gitea instead:
   or ask the user to run the sudo command themselves via the `!` prefix
 
 ## Flux (minikube)
-- Installed via `flux install` (controllers only) into `flux-system` — not yet bootstrapped against this
-  repo; nothing is live until that happens
+- `flux install` (controllers) + bootstrapped: root `GitRepository/flux-system` (this repo) and
+  `Kustomization/fleet-dev-cluster`, both in `flux-system`, path `./dev-cluster`
 - `GitRepository`/`Kustomization` objects for fleet infra live in `flux-system` namespace; `HelmRelease`
   objects live in the instance's own target namespace (e.g. `fusion-dev-a`)
 - `HelmRelease.spec.install.createNamespace: true` only creates the namespace at Helm-install time —
   kustomize-controller still needs the namespace to exist to apply the `HelmRelease` object itself, so each
   instance's `kustomization.yaml` must also include a `namespace.yaml` resource (listed before the
   `HelmRelease`)
+
+## Prerequisite for any project before it gets a fleet instance
+Before adding a `projects/<project>/<channel>/<instance>/` for a project, verify its chart templates use
+`{{ .Release.Namespace }}`, never a hardcoded/values-driven namespace field. A chart that hardcodes its
+namespace will silently render into that namespace regardless of which namespace the `HelmRelease` itself
+lives in — and Helm will take ownership of (and overwrite) whatever's already there if names collide. This
+caused a real incident with fusion-spectra's chart (fixed); check every other project's chart before its
+first instance is added here.
+
+## Values layering for instances
+`HelmRelease.spec.chart.spec.valuesFiles` references the chart's own values files (e.g. `values.yaml`,
+`values-dev.yaml`) by path relative to the chart root — reuse the project's existing values files instead of
+inlining a full `values:` block per instance. For instance-specific overrides beyond what those files give
+(e.g. a different image tag or hostname for one specific instance), add a Kustomize patch in that instance's
+`kustomization.yaml` targeting the `HelmRelease`'s `spec.values`, rather than maintaining a divergent copy of
+the whole values block.
