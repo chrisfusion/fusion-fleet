@@ -1,0 +1,15 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: fusion-dev-instance-a
+  namespace: flux-system
+spec:
+  interval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  path: ./dev-cluster/projects/fusion/dev/instance_a
+  prune: true
+  wait: true
+  targetNamespace: fusion-dev-a
