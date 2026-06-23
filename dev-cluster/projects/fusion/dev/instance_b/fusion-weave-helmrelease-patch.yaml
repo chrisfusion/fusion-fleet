@@ -1,0 +1,19 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: fusion-weave
+  namespace: fusion-dev-b
+spec:
+  values:
+    namespaceCreate: false
+    codeSource:
+      indexURL: "http://fusion-index-backend.fusion-dev-b.svc.cluster.local:8080"
+    image:
+      repository: fusion-weave-operator
+      tag: "0.2.1"
+      pullPolicy: Never
+    api:
+      image:
+        repository: fusion-weave-operator
+        tag: "0.2.1"
+        pullPolicy: Never

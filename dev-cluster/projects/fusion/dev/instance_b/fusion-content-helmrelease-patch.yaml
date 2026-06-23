@@ -1,0 +1,21 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: fusion-content
+  namespace: fusion-dev-b
+spec:
+  values:
+    repos:
+      sources:
+        - name: fusion-forge
+          url: https://github.com/chrisfusion/fusion-forge
+          changelogPath: CHANGELOG.md
+        - name: fusion-index
+          url: https://github.com/chrisfusion/fusion-index
+          changelogPath: CHANGELOG.md
+        - name: fusion-spectra
+          url: https://github.com/chrisfusion/fusion-spectra
+          changelogPath: CHANGELOG.md
+        - name: fusion-bff
+          url: https://github.com/chrisfusion/fusion-bff
+          changelogPath: CHANGELOG.md

@@ -1,0 +1,20 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: fusion-spectra
+  namespace: fusion-dev-b
+spec:
+  interval: 1m
+  releaseName: fusion-spectra
+  install:
+    createNamespace: true
+  chart:
+    spec:
+      chart: ./deployment
+      sourceRef:
+        kind: GitRepository
+        name: fusion-spectra-main
+        namespace: flux-system
+      valuesFiles:
+        - deployment/values.yaml
+        - deployment/values-dev.yaml

@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - fusion-spectra-helmrelease.yaml
+  - fusion-bff-helmrelease.yaml
+  - fusion-forge-helmrelease.yaml
+  - fusion-index-helmrelease.yaml
+  - fusion-content-helmrelease.yaml
+  - fusion-weave-helmrelease.yaml
+patches:
+  - path: fusion-spectra-helmrelease-patch.yaml
+    target:
+      kind: HelmRelease
+      name: fusion-spectra
+  - path: fusion-bff-helmrelease-patch.yaml
+    target:
+      kind: HelmRelease
+      name: fusion-bff
+  - path: fusion-index-helmrelease-patch.yaml
+    target:
+      kind: HelmRelease
+      name: fusion-index
+  - path: fusion-weave-helmrelease-patch.yaml
+    target:
+      kind: HelmRelease
+      name: fusion-weave
+  - path: fusion-content-helmrelease-patch.yaml
+    target:
+      kind: HelmRelease
+      name: fusion-content
+  - path: fusion-forge-helmrelease-patch.yaml
+    target:
+      kind: HelmRelease
+      name: fusion-forge

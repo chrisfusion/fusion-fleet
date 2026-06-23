@@ -1,0 +1,10 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: fusion-index
+  namespace: fusion-dev-b
+spec:
+  values:
+    createNamespace: false
+    ingress:
+      enabled: false

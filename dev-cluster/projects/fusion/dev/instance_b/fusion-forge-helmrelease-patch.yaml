@@ -1,0 +1,13 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: fusion-forge
+  namespace: fusion-dev-b
+spec:
+  values:
+    server:
+      config:
+        indexBackendURL: "http://fusion-index-backend.fusion-dev-b.svc.cluster.local:8080"
+    watcher:
+      config:
+        indexBackendURL: "http://fusion-index-backend.fusion-dev-b.svc.cluster.local:8080"

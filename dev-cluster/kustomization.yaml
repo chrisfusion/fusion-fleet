@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - gitrepositories
   - projects/fusion/dev/instance_a/flux-kustomization.yaml
+  - projects/fusion/dev/instance_b/flux-kustomization.yaml
