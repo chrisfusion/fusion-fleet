@@ -10,3 +10,5 @@ spec:
       host: spectra-b.fusion.local
       tls:
         enabled: false
+    config:
+      bffUrl: http://bff-b.fusion.local
