@@ -11,6 +11,8 @@ spec:
       pullPolicy: Never
     config:
       oidcBypass: true
+      oidcBypassBaseUrl: "http://bff-b.fusion.local"
+      corsOrigins: "http://spectra-b.fusion.local"
       forgeUrl: "http://fusion-forge.fusion-dev-b.svc.cluster.local:8080"
       indexUrl: "http://fusion-index-backend.fusion-dev-b.svc.cluster.local:8080"
       weaveUrl: "http://fusion-weave-api.fusion-dev-b.svc.cluster.local:8082"
