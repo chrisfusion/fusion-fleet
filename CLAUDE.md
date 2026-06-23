@@ -114,6 +114,12 @@ Flux so the next install starts with clean history. Lesson: fix the chart and ve
 *before* ever creating the first `HelmRelease` for a project — never fix-after-broken-install again.
 
 ## Values layering for instances
+Before referencing a values file in `valuesFiles`, confirm it's actually tracked in git
+(`git ls-files | grep values` in the project repo) — files like `values-local.yaml` are commonly
+`.gitignore`d (e.g. fusion-content's, to keep real tokens out of git) and will never exist for Flux to
+fetch, even though they work fine for a local manual `helm install -f`. If the file is gitignored, inline
+the (non-secret) parts you need directly as a Kustomize patch on `HelmRelease.spec.values` instead.
+
 `HelmRelease.spec.chart.spec.valuesFiles` references the chart's own values files (e.g. `values.yaml`,
 `values-dev.yaml`) by path relative to the **GitRepository root**, not the chart subdirectory — e.g.
 `deployment/values.yaml`, not `values.yaml`, even though `chart.spec.chart: ./deployment`. Reuse the

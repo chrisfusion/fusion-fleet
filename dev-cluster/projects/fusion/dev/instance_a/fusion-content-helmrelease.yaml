@@ -17,4 +17,3 @@ spec:
         namespace: flux-system
       valuesFiles:
         - deployment/values.yaml
-        - deployment/values-local.yaml

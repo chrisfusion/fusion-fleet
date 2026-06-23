@@ -26,3 +26,7 @@ patches:
     target:
       kind: HelmRelease
       name: fusion-weave
+  - path: fusion-content-helmrelease-patch.yaml
+    target:
+      kind: HelmRelease
+      name: fusion-content
