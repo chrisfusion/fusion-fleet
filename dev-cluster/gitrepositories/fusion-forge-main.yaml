@@ -1,0 +1,10 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: fusion-forge-main
+  namespace: flux-system
+spec:
+  interval: 1m
+  url: http://gitea.fusion.local/gitea_admin/fusion-forge.git
+  ref:
+    branch: main

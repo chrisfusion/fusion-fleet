@@ -1,0 +1,17 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: fusion-weave
+  namespace: fusion-dev-a
+spec:
+  values:
+    namespaceCreate: false
+    image:
+      repository: fusion-weave-operator
+      tag: "0.2.1"
+      pullPolicy: Never
+    api:
+      image:
+        repository: fusion-weave-operator
+        tag: "0.2.1"
+        pullPolicy: Never

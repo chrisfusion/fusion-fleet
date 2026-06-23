@@ -1,0 +1,19 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: fusion-forge
+  namespace: fusion-dev-a
+spec:
+  interval: 1m
+  releaseName: fusion-forge
+  install:
+    createNamespace: true
+  chart:
+    spec:
+      chart: ./deployment
+      sourceRef:
+        kind: GitRepository
+        name: fusion-forge-main
+        namespace: flux-system
+      valuesFiles:
+        - deployment/values.yaml

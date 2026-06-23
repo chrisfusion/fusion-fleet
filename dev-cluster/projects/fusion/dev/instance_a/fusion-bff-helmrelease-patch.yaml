@@ -1,0 +1,16 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: fusion-bff
+  namespace: fusion-dev-a
+spec:
+  values:
+    image:
+      repository: fusion-bff
+      tag: "0.4.7"
+      pullPolicy: Never
+    config:
+      oidcBypass: true
+    db:
+      create: true
+      dsn: "postgres://fusion_bff:devpass@fusion-bff-postgres-postgresql.fusion-dev-a.svc.cluster.local:5432/fusion_bff"

@@ -29,8 +29,23 @@ live in each project's own repo (e.g. `deployment/` in fusion-spectra) and are s
 
 ## Project granularity
 `projects/fusion/` is an umbrella covering all fusion-platform microservices (fusion-spectra, fusion-bff,
-fusion-forge, fusion-index, fusion-content) — NOT one folder per repo. Each instance directory holds one
-`HelmRelease` per microservice included in that instance.
+fusion-forge, fusion-index, fusion-content, fusion-weave — the latter's repo is named `fusion-flux` locally
+but its actual git origin/chart is `fusion-weave`, use that name for GitRepository/mirror/HelmRelease) — NOT
+one folder per repo. Each instance directory holds one `HelmRelease` per microservice included in that
+instance.
+
+## Postgres
+Don't assume every project needs a fleet-level Postgres `HelmRelease` — check each chart first:
+- fusion-forge: bundles its own Postgres as raw manifests in its own chart (`postgresql.enabled`, default
+  true) — self-contained, nothing extra needed
+- fusion-index: declares Bitnami `postgresql` as a conditional Helm chart *dependency*
+  (`postgresql.enabled`, default true) — also self-contained
+- fusion-content, fusion-weave: no database
+- fusion-bff: the one real gap — takes only an external `db.dsn` value, no bundled/dependency chart. Fleet
+  provides this via a standalone `HelmRelease` (`fusion-bff-postgres`) sourced from the public Bitnami
+  `HelmRepository` (`https://charts.bitnami.com/bitnami`, chart `postgresql`) with **fixed** (not
+  auto-generated) `auth.username`/`auth.password`/`auth.database`, so `fusion-bff`'s own `HelmRelease` patch
+  can construct a static DSN pointing at `<postgres-release>-postgresql.<namespace>.svc.cluster.local`
 
 ## Chart sources (local dev)
 Project repos' real origin is `git@work:...` (SSH) — unreachable from inside minikube without a deploy-key
@@ -74,6 +89,29 @@ namespace will silently render into that namespace regardless of which namespace
 lives in — and Helm will take ownership of (and overwrite) whatever's already there if names collide. This
 caused a real incident with fusion-spectra's chart (fixed); check every other project's chart before its
 first instance is added here.
+
+Also grep for **other** `.Values.namespace`/`.Chart.Version` uses beyond the obvious `metadata.namespace`
+fields — found and fixed real instances of: an operator's `NAMESPACE` env var (fusion-weave, fusion-forge's
+watcher), a postgres DNS hostname helper (fusion-index's `_helpers.tpl`), and an unsanitized
+`helm.sh/chart` label using raw `.Chart.Version` (every project) — Flux's `HelmChart` packaging appends
+build metadata (e.g. `0.1.0+3`) to the chart version, and `+` isn't valid in a Kubernetes label value, so
+this breaks on first Flux-managed install even though manual `helm install` never hits it (manual installs
+always use the chart's literal `0.1.0`, no `+N` suffix).
+
+Also check each chart's own namespace-creation toggle (`createNamespace`/`namespaceCreate`/etc.) and set it
+to `false` via a values patch if it defaults to `true` — every `HelmRelease` in the same instance shares one
+`Namespace` object (created once by the instance's own `namespace.yaml`); letting multiple charts each try
+to own/create it risks the same kind of field-manager ownership conflict seen in fusion-spectra's
+pre-existing manual-deploy history.
+
+**Incident note**: the first fusion-spectra test instance broke the live manual deployment twice — once
+from the namespace bug itself, and again later when upgrading the (by-then-fixed) instance's `HelmRelease`,
+because its *release history* still remembered the original broken manifest (resources in the `fusion`
+namespace) and Helm pruned them as "no longer present" on the next upgrade. Recovery both times was: suspend
+the `HelmRelease`/`Kustomization`s, restore the live namespace's resources directly via `helm upgrade
+--install ... -n fusion`, then `helm uninstall` the tainted release in the test namespace before resuming
+Flux so the next install starts with clean history. Lesson: fix the chart and verify with `helm template`
+*before* ever creating the first `HelmRelease` for a project — never fix-after-broken-install again.
 
 ## Values layering for instances
 `HelmRelease.spec.chart.spec.valuesFiles` references the chart's own values files (e.g. `values.yaml`,

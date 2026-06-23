@@ -1,0 +1,19 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: fusion-weave
+  namespace: fusion-dev-a
+spec:
+  interval: 1m
+  releaseName: fusion-weave
+  install:
+    createNamespace: true
+  chart:
+    spec:
+      chart: ./deployment/fusion-weave
+      sourceRef:
+        kind: GitRepository
+        name: fusion-weave-main
+        namespace: flux-system
+      valuesFiles:
+        - deployment/fusion-weave/values.yaml
