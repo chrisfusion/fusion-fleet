@@ -62,5 +62,7 @@ Secret. For local dev, mirror project repos into Gitea instead:
   repo; nothing is live until that happens
 - `GitRepository`/`Kustomization` objects for fleet infra live in `flux-system` namespace; `HelmRelease`
   objects live in the instance's own target namespace (e.g. `fusion-dev-a`)
-- `HelmRelease.spec.install.createNamespace: true` — avoids needing a separate `Namespace` manifest per
-  instance
+- `HelmRelease.spec.install.createNamespace: true` only creates the namespace at Helm-install time —
+  kustomize-controller still needs the namespace to exist to apply the `HelmRelease` object itself, so each
+  instance's `kustomization.yaml` must also include a `namespace.yaml` resource (listed before the
+  `HelmRelease`)
