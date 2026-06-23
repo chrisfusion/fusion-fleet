@@ -3,3 +3,8 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - fusion-spectra-helmrelease.yaml
+patches:
+  - path: fusion-spectra-helmrelease-patch.yaml
+    target:
+      kind: HelmRelease
+      name: fusion-spectra
