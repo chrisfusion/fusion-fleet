@@ -35,17 +35,24 @@ one folder per repo. Each instance directory holds one `HelmRelease` per microse
 instance.
 
 ## Postgres
-Don't assume every project needs a fleet-level Postgres `HelmRelease` — check each chart first:
+Don't assume every project needs its own Postgres — check each chart first, and check whether a project
+without a bundled database is actually meant to share an *existing* instance's Postgres (a different
+database on the same server) rather than getting a dedicated one:
 - fusion-forge: bundles its own Postgres as raw manifests in its own chart (`postgresql.enabled`, default
   true) — self-contained, nothing extra needed
 - fusion-index: declares Bitnami `postgresql` as a conditional Helm chart *dependency*
   (`postgresql.enabled`, default true) — also self-contained
 - fusion-content, fusion-weave: no database
-- fusion-bff: the one real gap — takes only an external `db.dsn` value, no bundled/dependency chart. Fleet
-  provides this via a standalone `HelmRelease` (`fusion-bff-postgres`) sourced from the public Bitnami
-  `HelmRepository` (`https://charts.bitnami.com/bitnami`, chart `postgresql`) with **fixed** (not
-  auto-generated) `auth.username`/`auth.password`/`auth.database`, so `fusion-bff`'s own `HelmRelease` patch
-  can construct a static DSN pointing at `<postgres-release>-postgresql.<namespace>.svc.cluster.local`
+- fusion-bff: takes only an external `db.dsn` value, no bundled/dependency chart — but it does NOT get its
+  own Postgres. The manual-deploy `fusion` namespace's live secret shows it actually points at
+  `fusion-index-postgresql` (a different database, `fusion_bff`, on fusion-index's *same* Postgres server),
+  confirmed by `fusion-bff/CLAUDE.md`. Per-instance, `fusion-bff`'s `HelmRelease` patch sets
+  `db.dsn: postgres://fusion:<password>@fusion-index-postgresql.<namespace>.svc.cluster.local:5432/fusion_bff`
+  — same Postgres server, same username/password as `fusion-index`'s own `postgresql.auth.*` values, just a
+  different database name. The `fusion_bff` database itself isn't created by any chart — provisioned
+  manually once per instance via `kubectl exec ... psql -c "CREATE DATABASE fusion_bff"` against that
+  Postgres pod, matching the documented production bootstrap step (see `fusion-bff/CLAUDE.md`: "DB is empty
+  on first deploy... manually via kubectl exec on the postgres pod").
 
 ## Chart sources (local dev)
 Project repos' real origin is `git@work:...` (SSH) — unreachable from inside minikube without a deploy-key

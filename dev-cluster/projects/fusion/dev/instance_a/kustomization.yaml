@@ -4,7 +4,6 @@ resources:
   - namespace.yaml
   - fusion-spectra-helmrelease.yaml
   - fusion-bff-helmrelease.yaml
-  - fusion-bff-postgres-helmrelease.yaml
   - fusion-forge-helmrelease.yaml
   - fusion-index-helmrelease.yaml
   - fusion-content-helmrelease.yaml

@@ -7,4 +7,3 @@ resources:
   - fusion-index-main.yaml
   - fusion-content-main.yaml
   - fusion-weave-main.yaml
-  - bitnami-helmrepository.yaml

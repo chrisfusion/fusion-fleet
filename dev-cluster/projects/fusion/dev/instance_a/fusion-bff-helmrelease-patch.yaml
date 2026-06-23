@@ -17,4 +17,4 @@ spec:
       contentUrl: "http://fusion-content.fusion-dev-a.svc.cluster.local:8080"
     db:
       create: true
-      dsn: "postgres://fusion_bff:devpass@fusion-bff-postgres-postgresql.fusion-dev-a.svc.cluster.local:5432/fusion_bff"
+      dsn: "postgres://fusion:devpass@fusion-index-postgresql.fusion-dev-a.svc.cluster.local:5432/fusion_bff?sslmode=disable"
