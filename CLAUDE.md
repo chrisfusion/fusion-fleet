@@ -49,6 +49,20 @@ hostnames work with zero `/etc/hosts` edits — convention: `<service>-<instance
   assume a shape.
 - fusion-spectra defaults `ingress.tls.enabled: true` — overriding `ingress.host` also needs
   `ingress.tls.enabled: false` in the same patch, or it dangles a `secretName` with no matching Secret.
+- Giving an instance's `fusion-spectra` its own ingress host needs three matching `fusion-bff` config
+  overrides on that instance, or browser login breaks (redirects to a dead `localhost:8080`, then 401s
+  silently from CORS, then loops back to login even after auth succeeds): `config.oidcBypassBaseUrl`
+  (`http://bff-<instance>.fusion.local`), `config.corsOrigins` (`http://spectra-<instance>.fusion.local`),
+  `config.postLoginRedirectUrl` (same spectra host) — all default to `localhost`/`/`/unset, fine for a
+  single-instance deploy but wrong the moment a second instance gets its own hostname. Also: ConfigMap
+  changes alone don't restart the `fusion-bff` pod — `kubectl rollout restart deployment/fusion-bff -n
+  <ns>` after reconcile, since these are env vars read once at startup.
+
+## Don't confuse spectra.fusion.local with spectra-a/b.fusion.local
+`spectra.fusion.local` is the separate, manually-managed `fusion` namespace deploy (the one described in
+fusion-spectra/CLAUDE.md's "Deployment" section) — untouched by pushes to this fleet's `gitea` remote.
+The GitOps-managed instances live at `spectra-a.fusion.local` / `spectra-b.fusion.local`. Verifying a
+feature "in the browser" after a Flux deploy means the latter, not the former.
 
 ## Postgres
 Don't assume every project needs its own Postgres — check each chart first, and check whether a project
@@ -75,6 +89,10 @@ Project repos' real origin is `git@work:...` (SSH) — unreachable from inside m
 Secret. For local dev, mirror project repos into Gitea instead:
 `http://gitea.fusion.local/gitea_admin/<project>.git` (public, no credentials Secret needed).
 `GitRepository.spec.url` in `gitrepositories/` points at the Gitea mirror, not the real origin.
+
+Each project repo (including this one) has a `gitea` remote (local mirror, safe to push freely) alongside
+its real `origin` (GitHub/work — never push there without explicit per-push confirmation). Flux only ever
+watches the `gitea` mirror, so `git push gitea main` is the only push needed to deploy a change.
 
 ## Gitea (minikube)
 - Namespace `gitea`, ingress `gitea.fusion.local` — resolves automatically via the host's wildcard
@@ -142,6 +160,10 @@ The stale-`HelmChart`-artifact caching bug (delete-and-recreate the `HelmChart` 
 rebuild) only seems to hit when amending a chart *after* its `HelmChart` object already exists for that
 release — instance_b's brand-new first install of the same (already-fixed) charts didn't trigger it at
 all.
+
+Simpler fix, try first: bump the chart's `Chart.yaml` `version` field. `reconcileStrategy: ChartVersion`
+only repackages the `HelmChart` artifact when that field changes — a content-only push to the tracked
+branch does NOT trigger a redeploy by itself, even though `GitRepository` fetches the new revision.
 
 ## Values layering for instances
 Before referencing a values file in `valuesFiles`, confirm it's actually tracked in git
