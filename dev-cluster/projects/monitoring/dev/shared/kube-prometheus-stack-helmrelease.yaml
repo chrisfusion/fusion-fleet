@@ -38,14 +38,17 @@ spec:
         podMonitorSelectorNilUsesHelmValues: false
         podMonitorNamespaceSelector: {}
 
-    # kube-state-metrics drops all pod labels from kube_pod_labels by default — allow-list the
-    # three weave sets on every job/deploy step pod (jobbuilder.go + deploybuilder.go,
-    # fusion-flux/internal/{jobbuilder,deploybuilder}/builder.go), so the "chains/jobs/apps"
-    # status dashboard panel can identify weave-managed pods independently of forge build pods
-    # (which never carry these labels).
+    # kube-state-metrics drops all pod labels from kube_pod_labels by default — allow-list:
+    #   - the three weave labels every job/deploy step pod carries (jobbuilder.go +
+    #     deploybuilder.go, fusion-flux/internal/{jobbuilder,deploybuilder}/builder.go), so the
+    #     "chains/jobs/apps" status panel can identify weave-managed pods independently of forge
+    #     build pods (which never carry these labels)
+    #   - the forge build-job label every CIBuild pod carries (fusion-forge/internal/jobbuilder/
+    #     jobbuilder.go labelBuildIDKey), so the "forge job" status panel can identify build pods
+    #     independently of weave pods (which never carry this label)
     kube-state-metrics:
       metricLabelsAllowlist:
-        - "pods=[fusion-platform.io/chain,fusion-platform.io/step,fusion-platform.io/run]"
+        - "pods=[fusion-platform.io/chain,fusion-platform.io/step,fusion-platform.io/run,build.fusion-platform.io/cibuild]"
 
     grafana:
       # Dev-only credential — never use this value in production.
