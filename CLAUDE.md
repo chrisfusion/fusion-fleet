@@ -34,6 +34,46 @@ but its actual git origin/chart is `fusion-weave`, use that name for GitReposito
 one folder per repo. Each instance directory holds one `HelmRelease` per microservice included in that
 instance.
 
+`projects/monitoring/dev/shared/` is a separate umbrella for cluster-shared infra (currently just the
+Prometheus/Grafana stack) — `dev`/`shared` because there is one instance for the whole dev-cluster, not one
+per fusion instance (instance_a/b share it). Don't add a per-instance monitoring stack; wire new scrape
+targets into the shared one instead (see below).
+
+## Monitoring (dev-cluster, local only — production has its own separate Grafana/Prometheus)
+- `dev-cluster/helmrepositories/prometheus-community.yaml` — Flux `HelmRepository` pointing at the
+  upstream `https://prometheus-community.github.io/helm-charts`; this is the **only** third-party
+  (non-fusion-platform) chart source in this repo, deliberately separate from `gitrepositories/` since it's
+  pulled directly from a Helm repo, not mirrored into Gitea.
+- `projects/monitoring/dev/shared/` installs `kube-prometheus-stack` (Prometheus + Grafana + Alertmanager +
+  kube-state-metrics + node-exporter) into the `monitoring` namespace, plus the `fusion-grafana` HelmRelease
+  (chart lives in the `fusion-grafana` repo) which only adds dashboard ConfigMaps on top — it does not
+  deploy Grafana/Prometheus itself.
+  - `kubeControllerManager`/`kubeScheduler`/`kubeEtcd`/`kubeProxy` are disabled in values — minikube's
+    control plane doesn't expose these reliably and they just produce permanently-down scrape targets.
+  - `prometheus.prometheusSpec.serviceMonitorNamespaceSelector: {}` (and the PodMonitor equivalent) — lets
+    `ServiceMonitor`/`PodMonitor` objects in `fusion-dev-a`/`fusion-dev-b` (or any future namespace) get
+    discovered without per-namespace label wiring.
+  - `grafana.sidecar.dashboards.searchNamespace: ALL` — so dashboard ConfigMaps from the `fusion-grafana`
+    chart (deployed into `monitoring`) are picked up; default Grafana sidecar behavior only watches its own
+    namespace.
+  - Grafana reachable at `grafana.fusion.local` (covered by the existing `*.fusion.local` wildcard DNS, see
+    fusion-spectra/CLAUDE.md); dev-only admin password is set inline in the HelmRelease values — never reuse
+    that value anywhere real.
+- **Per-instance scrape targets live next to the instance, not in the monitoring stack's own directory.**
+  Each instance that exposes Prometheus metrics gets a `projects/fusion/dev/instance_*/monitoring/` folder
+  with its own `ServiceMonitor` + a *separate* `flux-kustomization.yaml` (own `Kustomization` CR) that
+  `dependsOn` both `fusion-monitoring-shared` (so the `ServiceMonitor` CRD exists before Flux tries to apply
+  one) and the instance's main `fusion-dev-instance-<x>` Kustomization (so the target Service exists first).
+  This is deliberately **not** a dependency on the instance's main Kustomization in the other direction —
+  the bulk of an instance's microservices (spectra, bff, forge, index, content, weave) must keep deploying
+  even if the shared monitoring stack is down or not yet reconciled; only the monitoring-specific add-on
+  waits on it. Example: `fusion-weave-servicemonitor.yaml` (in each instance's `monitoring/` folder) selects
+  the `fusion-weave-api` Service's `metrics` port, which only exists when that instance's
+  `fusion-weave-helmrelease-patch.yaml` sets `api.monitoring.enabled: true` (off by default in the chart).
+- **fusion-index's `/q/metrics` is plain JSON, not Prometheus exposition format** — do not add a
+  `ServiceMonitor` for it; it will silently scrape nothing useful. Would need a real `/metrics` endpoint
+  added upstream (or a JSON-to-Prometheus exporter sidecar) before it can join this stack.
+
 ## Adding a new instance
 Fastest path: copy an existing instance dir and sed-replace its namespace string (e.g.
 `fusion-dev-a` → `fusion-dev-b`) across all files. This does NOT catch `flux-kustomization.yaml`'s

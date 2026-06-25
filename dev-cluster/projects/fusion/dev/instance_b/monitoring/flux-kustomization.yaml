@@ -1,0 +1,20 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: fusion-dev-instance-b-monitoring
+  namespace: flux-system
+spec:
+  interval: 1m
+  dependsOn:
+    - name: fusion-monitoring-shared
+      namespace: flux-system
+    - name: fusion-dev-instance-b
+      namespace: flux-system
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  path: ./dev-cluster/projects/fusion/dev/instance_b/monitoring
+  prune: true
+  wait: true
+  targetNamespace: fusion-dev-b

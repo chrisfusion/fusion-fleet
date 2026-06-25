@@ -17,3 +17,5 @@ spec:
         repository: fusion-weave-operator
         tag: "0.2.1"
         pullPolicy: Never
+      monitoring:
+        enabled: true
