@@ -1,0 +1,27 @@
+# Example instance placeholder — rename this directory to your real instance name when adding
+# a production instance. Mock placeholder — not wired into any kustomization.yaml, no real
+# content yet.
+# Replace with the hand-rolled Postgres Deployment (+ its own Service), always in the same
+# namespace as this instance. Applied last among the raw supporting manifests, before
+# ../../../base.
+#
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: postgres
+# spec:
+#   replicas: 1
+#   selector:
+#     matchLabels:
+#       app: postgres
+#   template:
+#     metadata:
+#       labels:
+#         app: postgres
+#     spec:
+#       containers:
+#         - name: postgres
+#           image: postgres:16
+#           envFrom:
+#             - secretRef:
+#                 name: <secret-name>

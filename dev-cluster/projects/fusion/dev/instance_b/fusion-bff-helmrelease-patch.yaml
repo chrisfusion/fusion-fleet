@@ -2,15 +2,9 @@ apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
   name: fusion-bff
-  namespace: fusion-dev-b
 spec:
   values:
-    image:
-      repository: fusion-bff
-      tag: "0.4.7"
-      pullPolicy: Never
     config:
-      oidcBypass: true
       oidcBypassBaseUrl: "http://bff-b.fusion.local"
       corsOrigins: "http://spectra-b.fusion.local"
       postLoginRedirectUrl: "http://spectra-b.fusion.local"
@@ -19,7 +13,6 @@ spec:
       weaveUrl: "http://fusion-weave-api.fusion-dev-b.svc.cluster.local:8082"
       contentUrl: "http://fusion-content.fusion-dev-b.svc.cluster.local:8080"
     db:
-      create: true
       dsn: "postgres://fusion:devpass@fusion-index-postgresql.fusion-dev-b.svc.cluster.local:5432/fusion_bff?sslmode=disable"
     ingress:
       enabled: true

@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - fusion-spectra-helmrelease.yaml
+  - fusion-bff-helmrelease.yaml
+  - fusion-forge-helmrelease.yaml
+  - fusion-index-helmrelease.yaml
+  - fusion-content-helmrelease.yaml
+  - fusion-weave-helmrelease.yaml

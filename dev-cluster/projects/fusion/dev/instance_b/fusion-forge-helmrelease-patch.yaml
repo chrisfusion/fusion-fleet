@@ -2,7 +2,6 @@ apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
   name: fusion-forge
-  namespace: fusion-dev-b
 spec:
   values:
     server:

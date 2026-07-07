@@ -1,0 +1,21 @@
+# Mock placeholder — not wired into kustomization.yaml, no real content yet.
+# Replace with the actual Ingress manifest(s) (bff + spectra); applied after
+# serviceaccount.yaml, before services.yaml.
+#
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: <name>
+# spec:
+#   ingressClassName: nginx
+#   rules:
+#     - host: <host>
+#       http:
+#         paths:
+#           - path: /
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: <service-name>
+#                 port:
+#                   number: <port>

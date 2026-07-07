@@ -1,0 +1,15 @@
+# Mock placeholder — not wired into kustomization.yaml, no real content yet.
+# Replace with any extra Service objects not already created by a chart in ../../base.
+# Applied after ingress.yaml, before postgres-deployment.yaml. Only needed if a service
+# doesn't already come from base/.
+#
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: <name>
+# spec:
+#   selector:
+#     app: <label>
+#   ports:
+#     - port: <port>
+#       targetPort: <targetPort>

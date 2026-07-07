@@ -5,7 +5,15 @@ for every fusion-platform project, across all clusters. Helm charts are NOT pull
 live in each project's own repo (e.g. `deployment/` in fusion-spectra) and are sourced via `GitRepository`.
 
 ## Clusters
-- `cluster1/`, `cluster2/` — production clusters (placeholder, not yet populated)
+- `cluster1/`, `cluster2/` — production clusters. Same base+overlay pattern as `dev-cluster`
+  (`gitrepositories/`, `helmrepositories/`, `projects/<project>/base/` + `projects/<project>/<channel>/
+  <instance>/`, root `kustomization.yaml` referencing only `flux-kustomization.yaml` files), but with a
+  single channel: `stable` (pinned release tag) — the `dev`/`staging`/`personal` channels are dev-cluster-only
+  concepts and don't apply to production. Currently just the directory skeleton (`projects/fusion/base/`
+  empty, no `stable/` instances yet) — real HelmRelease values and instances get added once you share your
+  production config, including your own per-instance raw manifests (Secrets, ServiceAccount, Ingress, a
+  hand-rolled Postgres `Deployment` — see the resource-ordering note under "dev-cluster layout" below; not
+  derived from dev-cluster's instances).
 - `dev-cluster/` — minikube; this is the Flux bootstrap path (`flux bootstrap --path=./dev-cluster`)
 
 ## dev-cluster layout
@@ -15,24 +23,50 @@ live in each project's own repo (e.g. `deployment/` in fusion-spectra) and are s
     the same ref share one polled source; an instance moves to a different ref by pointing at a different
     `GitRepository` name (not by editing the shared one)
   - Clean up `GitRepository` files here when no instance references that ref anymore
+- `projects/<project>/base/` — the shared, canonical `HelmRelease` for each microservice in the project
+  (chart ref + whatever values are actually the same across every instance, e.g. image tag, feature
+  toggles). No `metadata.namespace` field — every instance sets it via its own `kustomization.yaml`'s
+  `namespace:` transformer. This is a plain `kustomize.config.k8s.io` aggregator, never applied directly by
+  Flux — only pulled in as a resource by instance `kustomization.yaml` files.
 - `projects/<project>/<channel>/<instance>/` — one namespaced instance of a project
-  - `channel` is `dev` or `stable` — indicates which kind of ref the instance's `GitRepository` tracks
-    (`dev` → a branch, `stable` → a pinned release tag)
+  - `channel` is `dev`, `staging`, `stable`, or `personal` — indicates which kind of ref the instance's
+    `GitRepository` tracks and who it's for:
+    - `dev` → tracks a shared branch (e.g. `main`) — team test instances like `instance_a`/`instance_b`
+    - `staging` → tracks a pinned release-candidate tag, bumped manually to promote a version
+    - `stable` → tracks a pinned release tag (documented, not yet used)
+    - `personal` → tracks an individual developer's own branch, one instance dir per developer
+      (e.g. `personal/alice/`)
+  - `namespace.yaml` — the instance's `Namespace` object
+  - Raw supporting manifests not covered by any Helm chart (Secrets, a ServiceAccount, Ingress, extra
+    Services, a hand-rolled Postgres `Deployment` — always in the *same* namespace as the instance, never
+    a shared one) are flat files directly in the instance directory, same as `namespace.yaml` — not inside
+    `jobs/` (see below). Not all instances have all of these; only add what's actually needed.
+  - `kustomization.yaml` — sets `namespace: <instance-namespace>` (applies to everything pulled in from
+    `base/`, but Kustomize leaves the `Namespace` kind itself alone) and lists `resources:` in dependency
+    order — **later entries depend on earlier ones existing first**:
+    `namespace.yaml` → secrets → serviceaccount(s) → ingress(es) → extra services → postgres deployment →
+    `../../base` → `jobs` — plus `patches:` for only the values that genuinely differ from `base/` for this
+    instance (hostnames, DSNs, ingress, image tag overrides, etc.). Omit any entry that doesn't apply to a
+    given instance (e.g. dev-cluster instances today have none of the raw supporting manifests — dev's
+    ingress/postgres come from Helm chart values instead). This ordering applies to both `dev-cluster` and
+    `cluster1`/`cluster2` instances.
+  - `jobs/` — optional one-off `Job`/`CronJob` manifests for this instance (e.g. a seed/reset trigger, see
+    `SHOWROOM.md`) — **not** for persistent workloads like a Postgres `Deployment`, which is a flat file per
+    above. Starts as an empty `kustomization.yaml` (`resources: []`) referenced from the instance's own
+    `kustomization.yaml`, so adding a Job later needs no structural change, just a new file + resource entry
   - `flux-kustomization.yaml` — the Flux `Kustomization` CR for this instance (one per instance, reconciles
     independently — instance can fail/pause without affecting siblings)
-  - `kustomization.yaml` — plain `kustomize.config.k8s.io` aggregator listing this instance's workload
-    resources (`*-helmrelease.yaml`); built by the instance's own `Kustomization` CR, NOT by the root
   - **Critical**: the root `dev-cluster/kustomization.yaml` must only reference each instance's
-    `flux-kustomization.yaml` file (the CR), never the instance directory or its workload files directly —
-    otherwise both the root reconciler and the instance's own `Kustomization` CR would manage the same
-    `HelmRelease`, causing field-manager conflicts
+    `flux-kustomization.yaml` file (the CR), never the instance directory, `base/`, or workload files
+    directly — otherwise multiple reconcilers would manage the same `HelmRelease`, causing field-manager
+    conflicts
 
 ## Project granularity
 `projects/fusion/` is an umbrella covering all fusion-platform microservices (fusion-spectra, fusion-bff,
 fusion-forge, fusion-index, fusion-content, fusion-weave — the latter's repo is named `fusion-flux` locally
 but its actual git origin/chart is `fusion-weave`, use that name for GitRepository/mirror/HelmRelease) — NOT
-one folder per repo. Each instance directory holds one `HelmRelease` per microservice included in that
-instance.
+one folder per repo. `projects/fusion/base/` holds one `HelmRelease` per microservice; each instance
+directory contributes only namespace + the small set of values that diverge from base for that instance.
 
 `projects/monitoring/dev/shared/` is a separate umbrella for cluster-shared infra (currently just the
 Prometheus/Grafana stack) — `dev`/`shared` because there is one instance for the whole dev-cluster, not one
@@ -68,17 +102,25 @@ targets into the shared one instead (see below).
   the bulk of an instance's microservices (spectra, bff, forge, index, content, weave) must keep deploying
   even if the shared monitoring stack is down or not yet reconciled; only the monitoring-specific add-on
   waits on it. Example: `fusion-weave-servicemonitor.yaml` (in each instance's `monitoring/` folder) selects
-  the `fusion-weave-api` Service's `metrics` port, which only exists when that instance's
-  `fusion-weave-helmrelease-patch.yaml` sets `api.monitoring.enabled: true` (off by default in the chart).
+  the `fusion-weave-api` Service's `metrics` port, which only exists because `projects/fusion/base/
+  fusion-weave-helmrelease.yaml` sets `api.monitoring.enabled: true` (off by default in the chart) — a
+  shared value, not a per-instance patch, so every instance gets it.
 - **fusion-index's `/q/metrics` is plain JSON, not Prometheus exposition format** — do not add a
   `ServiceMonitor` for it; it will silently scrape nothing useful. Would need a real `/metrics` endpoint
   added upstream (or a JSON-to-Prometheus exporter sidecar) before it can join this stack.
 
 ## Adding a new instance
-Fastest path: copy an existing instance dir and sed-replace its namespace string (e.g.
-`fusion-dev-a` → `fusion-dev-b`) across all files. This does NOT catch `flux-kustomization.yaml`'s
+Fastest path: copy an existing instance dir (e.g. `dev/instance_a`) and sed-replace its namespace string
+(e.g. `fusion-dev-a` → `fusion-dev-c`) across all files, then trim each patch down to only the values that
+still genuinely differ (a fresh instance often needs less overriding than the one you copied from, since
+most fields already live in `projects/fusion/base/`). This does NOT catch `flux-kustomization.yaml`'s
 `path:` field, which references the instance *directory name* (e.g. `instance_a`) literally — fix that
 one by hand. Also add the new `flux-kustomization.yaml` to the root `dev-cluster/kustomization.yaml`.
+
+A `staging` or `personal` instance additionally needs its `GitRepository` ref checked/created in
+`gitrepositories/` (a tag for staging, a personal branch for `personal/<devname>`) and each service's patch
+overriding `chart.spec.sourceRef.name` to point at it, since `base/` HelmReleases point at the `main`-branch
+`GitRepository` by default.
 
 ## Real ingress per instance
 With the host's wildcard `*.fusion.local` DNS (see fusion-spectra/CLAUDE.md), per-instance ingress
@@ -215,7 +257,8 @@ the (non-secret) parts you need directly as a Kustomize patch on `HelmRelease.sp
 `HelmRelease.spec.chart.spec.valuesFiles` references the chart's own values files (e.g. `values.yaml`,
 `values-dev.yaml`) by path relative to the **GitRepository root**, not the chart subdirectory — e.g.
 `deployment/values.yaml`, not `values.yaml`, even though `chart.spec.chart: ./deployment`. Reuse the
-project's existing values files instead of inlining a full `values:` block per instance. For instance-specific overrides beyond what those files give
-(e.g. a different image tag or hostname for one specific instance), add a Kustomize patch in that instance's
-`kustomization.yaml` targeting the `HelmRelease`'s `spec.values`, rather than maintaining a divergent copy of
-the whole values block.
+project's existing values files instead of inlining a full `values:` block per instance. For values that
+are the same across every instance (image tag, feature toggles that don't vary), put them directly in
+`projects/<project>/base/<service>-helmrelease.yaml`. Only for values that genuinely differ per instance
+(hostname, DSN, a one-off image tag override) add a Kustomize patch in that instance's `kustomization.yaml`
+targeting the `HelmRelease`'s `spec.values` — never re-copy the whole values block into an instance.
