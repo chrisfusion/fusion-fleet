@@ -14,6 +14,14 @@ spec:
       contentUrl: "http://fusion-content.fusion-dev-b.svc.cluster.local:8080"
     db:
       dsn: "postgres://fusion:devpass@fusion-index-postgresql.fusion-dev-b.svc.cluster.local:5432/fusion_bff?sslmode=disable"
+    postgresql:
+      createDatabaseJob:
+        enabled: true
+      external:
+        host: fusion-index-postgresql
+        username: fusion
+        existingSecret: fusion-index-postgresql
+        existingSecretKey: password
     ingress:
       enabled: true
       className: nginx
