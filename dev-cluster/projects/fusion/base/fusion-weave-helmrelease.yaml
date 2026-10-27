@@ -5,8 +5,14 @@ metadata:
 spec:
   interval: 1m
   releaseName: fusion-weave
+  # Helm never upgrades a chart's crds/ — Flux creates/replaces them on every install/upgrade.
+  # CRDs are cluster-scoped: if an instance on an older ref joins this cluster, give it
+  # `crds: Skip` in its patch so it doesn't roll the CRDs back.
   install:
     createNamespace: true
+    crds: CreateReplace
+  upgrade:
+    crds: CreateReplace
   chart:
     spec:
       chart: ./deployment/fusion-weave

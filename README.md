@@ -36,3 +36,10 @@ only namespace + the values that diverge from base for that instance.
 Helm charts live in each project's own repo (not a registry). For local dev, project repos are mirrored
 into Gitea (`http://gitea.fusion.local/gitea_admin/<project>.git`) so the in-cluster `GitRepository` source
 can reach them without extra credentials.
+
+## CRDs
+
+Charts with CRDs (fusion-weave, fusion-forge) are released with `crds: CreateReplace`, since Helm never
+upgrades a chart's `crds/` directory. To apply every CRD by hand (e.g. a cluster without Flux, or the
+wizard, which has no `HelmRelease` here yet), clone the project repos next to this one and run
+`scripts/apply-crds.sh` (add `--dry-run=server` to preview).

@@ -247,6 +247,18 @@ Simpler fix, try first: bump the chart's `Chart.yaml` `version` field. `reconcil
 only repackages the `HelmChart` artifact when that field changes — a content-only push to the tracked
 branch does NOT trigger a redeploy by itself, even though `GitRepository` fetches the new revision.
 
+## CRDs
+- Only fusion-weave, fusion-forge and fusion-wizard define CRDs (bff, index, content, spectra have none). Their
+  `HelmRelease`s set `install.crds`/`upgrade.crds: CreateReplace`: plain Helm installs a chart's `crds/` but
+  never upgrades it, and a stale CRD silently prunes new spec fields on every write (forge's GitWatcher
+  missing `spec.autoTag` broke wizard autoPromote; forge's chart also didn't ship that CRD before 0.11.1)
+- CRDs are cluster-scoped, shared by every instance on the cluster: only instances on the newest ref may
+  manage them — an instance pinned to an older ref gets `crds: Skip` in its patch, or it rolls them back
+- `scripts/apply-crds.sh` applies all CRDs from sibling clones (`../fusion-weave` (or `../fusion-flux`),
+  `../fusion-forge`, `../fusion-wizard`, each `config/crd/bases/`) to the current kubectl context with
+  server-side apply — for clusters/projects without a Flux `HelmRelease` (the wizard has none here yet) or
+  to repair a cluster by hand; extra args go to `kubectl apply` (e.g. `--dry-run=server`)
+
 ## Values layering for instances
 Before referencing a values file in `valuesFiles`, confirm it's actually tracked in git
 (`git ls-files | grep values` in the project repo) — files like `values-local.yaml` are commonly
