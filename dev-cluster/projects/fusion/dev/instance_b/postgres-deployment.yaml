@@ -1,25 +1,66 @@
-# Mock placeholder — not wired into kustomization.yaml, no real content yet.
-# Replace with the hand-rolled Postgres Deployment (+ its own Service), always in the same
-# namespace as this instance. Applied last among the raw supporting manifests, before
-# ../../base.
-#
-# apiVersion: apps/v1
-# kind: Deployment
-# metadata:
-#   name: postgres
-# spec:
-#   replicas: 1
-#   selector:
-#     matchLabels:
-#       app: postgres
-#   template:
-#     metadata:
-#       labels:
-#         app: postgres
-#     spec:
-#       containers:
-#         - name: postgres
-#           image: postgres:16
-#           envFrom:
-#             - secretRef:
-#                 name: <secret-name>
+# Hand-rolled dev Postgres for this instance, shared by fusion-index (database
+# fusion_index) and fusion-bff (fusion_bff) — each chart's createDatabaseJob creates its
+# own database. Named fusion-index-postgresql like the Bitnami subchart fusion-index
+# bundled before 0.5.0, so existing fusion-bff DSNs resolve unchanged. User `fusion` is
+# the superuser (POSTGRES_USER). Data lives in an emptyDir: dev only, lost when the pod
+# is recreated.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fusion-index-postgresql
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: fusion-index-postgresql
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: fusion-index-postgresql
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:18-trixie
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: fusion-index-postgresql
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fusion-index-postgresql
+                  key: password
+            - name: POSTGRES_DB
+              value: postgres
+            # postgres:18 images expect the volume at /var/lib/postgresql, data in PGDATA below it
+            - name: PGDATA
+              value: /var/lib/postgresql/18/docker
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "fusion", "-d", "postgres"]
+            periodSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fusion-index-postgresql
+spec:
+  selector:
+    app.kubernetes.io/name: fusion-index-postgresql
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres

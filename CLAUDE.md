@@ -47,8 +47,9 @@ live in each project's own repo (e.g. `deployment/` in fusion-spectra) and are s
     `namespace.yaml` → secrets → serviceaccount(s) → ingress(es) → extra services → postgres deployment →
     `../../base` → `jobs` — plus `patches:` for only the values that genuinely differ from `base/` for this
     instance (hostnames, DSNs, ingress, image tag overrides, etc.). Omit any entry that doesn't apply to a
-    given instance (e.g. dev-cluster instances today have none of the raw supporting manifests — dev's
-    ingress/postgres come from Helm chart values instead). This ordering applies to both `dev-cluster` and
+    given instance (e.g. dev-cluster instances today only have `secrets.yaml` + `postgres-deployment.yaml`
+    for the shared dev Postgres, see "Postgres" below — dev's ingress comes from Helm chart values instead;
+    the other raw-manifest files are commented-out placeholders). This ordering applies to both `dev-cluster` and
     `cluster1`/`cluster2` instances.
   - `jobs/` — optional one-off `Job`/`CronJob` manifests for this instance (e.g. a seed/reset trigger, see
     `SHOWROOM.md`) — **not** for persistent workloads like a Postgres `Deployment`, which is a flat file per
@@ -152,19 +153,22 @@ without a bundled database is actually meant to share an *existing* instance's P
 database on the same server) rather than getting a dedicated one:
 - fusion-forge: bundles its own Postgres as raw manifests in its own chart (`postgresql.enabled`, default
   true) — self-contained, nothing extra needed
-- fusion-index: declares Bitnami `postgresql` as a conditional Helm chart *dependency*
-  (`postgresql.enabled`, default true) — also self-contained
+- fusion-index: external Postgres only since 0.5.0 (the Bitnami subchart dependency it had up to 0.4.x is
+  gone — upgrading an old release prunes that StatefulSet, so reset/uninstall the old release first). Its
+  `createDatabaseJob` hook creates `fusion_index` on the server named by `postgresql.host`
 - fusion-content, fusion-weave: no database
-- fusion-bff: takes only an external `db.dsn` value, no bundled/dependency chart — but it does NOT get its
-  own Postgres. The manual-deploy `fusion` namespace's live secret shows it actually points at
-  `fusion-index-postgresql` (a different database, `fusion_bff`, on fusion-index's *same* Postgres server),
-  confirmed by `fusion-bff/CLAUDE.md`. Per-instance, `fusion-bff`'s `HelmRelease` patch sets
+- fusion-bff: takes only an external `db.dsn` value, no bundled/dependency chart — it shares fusion-index's
+  Postgres server (database `fusion_bff`), confirmed by `fusion-bff/CLAUDE.md`. Per-instance, `fusion-bff`'s
+  `HelmRelease` patch sets
   `db.dsn: postgres://fusion:<password>@fusion-index-postgresql.<namespace>.svc.cluster.local:5432/fusion_bff`
-  — same Postgres server, same username/password as `fusion-index`'s own `postgresql.auth.*` values, just a
-  different database name. The `fusion_bff` database itself isn't created by any chart — provisioned
-  manually once per instance via `kubectl exec ... psql -c "CREATE DATABASE fusion_bff"` against that
-  Postgres pod, matching the documented production bootstrap step (see `fusion-bff/CLAUDE.md`: "DB is empty
-  on first deploy... manually via kubectl exec on the postgres pod").
+  plus `postgresql.createDatabaseJob` (pointing at the same server and the `fusion-index-postgresql`
+  Secret), whose hook creates `fusion_bff` on install/upgrade — no manual `CREATE DATABASE` needed anymore.
+- **Dev Postgres (dev-cluster)**: each instance's `secrets.yaml` + `postgres-deployment.yaml` define a
+  hand-rolled `postgres:18-trixie` Deployment/Service/Secret named `fusion-index-postgresql` (user `fusion`
+  = superuser, dev password, emptyDir data). It keeps the old Bitnami name so existing bff DSNs resolve, and
+  fusion-index's `values-dev.yaml` points at it (`postgresql.host: fusion-index-postgresql`, short name, so
+  it resolves in whichever namespace the release lives in). The manual-deploy `fusion` namespace uses the
+  same files: `kubectl apply -n fusion -f dev-cluster/projects/fusion/dev/instance_a/{secrets,postgres-deployment}.yaml`.
 
 ## Chart sources (local dev)
 Project repos' real origin is `git@work:...` (SSH) — unreachable from inside minikube without a deploy-key

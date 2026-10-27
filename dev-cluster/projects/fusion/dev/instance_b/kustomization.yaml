@@ -3,6 +3,8 @@ kind: Kustomization
 namespace: fusion-dev-b
 resources:
   - namespace.yaml
+  - secrets.yaml
+  - postgres-deployment.yaml
   - ../../base
   - jobs
 patches:
