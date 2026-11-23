@@ -1,5 +1,7 @@
 # fusion-fleet
 
+> Cross-repo context (platform, contracts, CRDs, conventions, known issues): `../fusion-okf/bundle/index.md`, this service: `../fusion-okf/bundle/services/fusion-fleet.md`. This file stays authoritative for repo-internal details.
+
 Flux GitOps fleet repo for fusion-platform. Holds `GitRepository`/`HelmRelease`/`Kustomization` manifests
 for every fusion-platform project, across all clusters. Helm charts are NOT pulled from a registry — they
 live in each project's own repo (e.g. `deployment/` in fusion-spectra) and are sourced via `GitRepository`.
